@@ -1,0 +1,16 @@
+{
+    "version": 2,
+    "installCommand": "npm install && cd server && npm install && cd ../client && npm install",
+    "buildCommand": "cd client && npm run build",
+    "outputDirectory": "client/build",
+    "framework": null,
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api"
+        }
+    ],
+    "env": {
+        "VERCEL": "1"
+    }
+}
