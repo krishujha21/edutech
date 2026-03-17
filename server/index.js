@@ -24,6 +24,7 @@ app.use('/api/sync', require('./routes/sync'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/teacher', require('./routes/teacher'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/homework', require('./routes/homework'));
 app.use('/api/schools', require('./routes/schools'));
 app.use('/api/announcements', require('./routes/announcements'));
 

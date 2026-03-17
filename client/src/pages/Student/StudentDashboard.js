@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useOffline } from '../../context/OfflineContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { apiFetch } from '../../config/api';
-import { dbGetAll, getOfflineStats, dbGet } from '../../db/indexedDB';
+import { dbGetAll, getOfflineStats, dbGet, dbPutBulk } from '../../db/indexedDB';
 import { StatCard, Card, ProgressBar, LoadingSpinner } from '../../components/common/UI';
 
 export default function StudentDashboard() {
@@ -13,6 +13,7 @@ export default function StudentDashboard() {
     const { t } = useLanguage();
     const [summary, setSummary] = useState(null);
     const [announcements, setAnnouncements] = useState([]);
+    const [homework, setHomework] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -22,17 +23,28 @@ export default function StudentDashboard() {
     async function loadDashboard() {
         try {
             if (isOnline) {
-                const [sumData, annData] = await Promise.all([
+                const [sumData, annData, hwData] = await Promise.all([
                     apiFetch('/progress/summary'),
-                    apiFetch('/announcements?role=student')
+                    apiFetch(`/announcements?role=student${user?.school_id ? `&school_id=${user.school_id}` : ''}`),
+                    apiFetch('/homework/me'),
                 ]);
                 setSummary(sumData.summary);
                 setAnnouncements(annData.announcements || []);
+                setHomework(hwData.homework || []);
+
+                // Cache for offline use (best-effort)
+                try {
+                    await dbPutBulk('announcements', annData.announcements || []);
+                } catch (_) { }
+                try {
+                    await dbPutBulk('homework', hwData.homework || []);
+                } catch (_) { }
             } else {
                 // Load from offline storage
                 const stats = await getOfflineStats();
                 const cached = await dbGet('user_profile', 'current');
                 const cachedAnn = await dbGetAll('announcements');
+                const cachedHw = await dbGetAll('homework');
                 setSummary({
                     student_name: cached?.full_name || user?.full_name,
                     xp_points: cached?.xp_points || 0,
@@ -42,6 +54,7 @@ export default function StudentDashboard() {
                     badges: []
                 });
                 setAnnouncements(cachedAnn || []);
+                setHomework(cachedHw || []);
             }
         } catch (err) {
             console.error('Dashboard load error:', err);
@@ -146,6 +159,42 @@ export default function StudentDashboard() {
                 </div>
             )}
 
+            {/* Homework */}
+            {homework.length > 0 && (
+                <div className="mb-6">
+                    <h2 className="text-lg font-bold text-gray-800 mb-3">📝 Homework</h2>
+                    <div className="space-y-2">
+                        {homework.slice(0, 3).map(h => (
+                            <Card key={h.id}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-lg">{h.subject_icon || '📘'}</span>
+                                            <h4 className="font-medium text-gray-800 text-sm">{h.title}</h4>
+                                        </div>
+                                        <p className="text-gray-500 text-xs">
+                                            {h.subject_name || 'Subject'}
+                                            {h.due_date ? ` • Due ${new Date(h.due_date).toLocaleDateString()}` : ''}
+                                        </p>
+                                        {h.description && <p className="text-gray-600 text-xs mt-1">{h.description}</p>}
+                                        {h.quiz_title && <p className="text-gray-500 text-xs mt-1">Quiz: {h.quiz_title}</p>}
+                                    </div>
+
+                                    {h.quiz_id ? (
+                                        <Link
+                                            to={`/student/quizzes/${h.quiz_id}`}
+                                            className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg font-medium whitespace-nowrap"
+                                        >Start Quiz</Link>
+                                    ) : (
+                                        <span className="text-xs text-gray-400 whitespace-nowrap">—</span>
+                                    )}
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Announcements */}
             {announcements.length > 0 && (
                 <div>
@@ -155,8 +204,8 @@ export default function StudentDashboard() {
                             <Card key={a.id}>
                                 <div className="flex items-start gap-3">
                                     <span className={`text-xs px-2 py-0.5 rounded-full ${a.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                            a.priority === 'urgent' ? 'bg-red-500 text-white' :
-                                                'bg-blue-100 text-blue-700'
+                                        a.priority === 'urgent' ? 'bg-red-500 text-white' :
+                                            'bg-blue-100 text-blue-700'
                                         }`}>{a.priority}</span>
                                     <div>
                                         <h4 className="font-medium text-gray-800 text-sm">{a.title}</h4>

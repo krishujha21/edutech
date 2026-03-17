@@ -6,44 +6,75 @@ const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 router.use(authenticateToken);
 router.use(authorizeRoles('govt_admin', 'super_admin'));
 
+function isoDateKey(d) {
+    return new Date(d).toISOString().split('T')[0];
+}
+
+function avg(nums) {
+    if (!nums || nums.length === 0) return 0;
+    return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function getSchoolStudentIds(schoolId) {
+    const studentIds = [];
+    for (const s of data.students) {
+        const u = data.users.find(u => u.id === s.user_id);
+        if (u?.school_id === schoolId) studentIds.push(s.id);
+    }
+    return studentIds;
+}
+
+function getSchoolTeacherCount(schoolId) {
+    const teacherUserIds = new Set(
+        data.users.filter(u => u.role === 'teacher' && u.school_id === schoolId).map(u => u.id)
+    );
+    return data.teachers.filter(t => teacherUserIds.has(t.user_id)).length;
+}
+
+function getStudentAvgScore(studentId) {
+    const attempts = data.quiz_attempts.filter(a => a.student_id === studentId);
+    return avg(attempts.map(a => a.percentage));
+}
+
 // GET /api/admin/dashboard
 router.get('/dashboard', (req, res) => {
     try {
         const activeSchools = data.schools.filter(s => s.is_active);
-        const totalStudents = activeSchools.reduce((s, sc) => s + (sc.student_count || 0), 0);
-        const totalTeachers = activeSchools.reduce((s, sc) => s + (sc.teacher_count || 0), 0);
+        const totalLessons = data.lessons.length;
+        const totalQuizAttempts = data.quiz_attempts.length;
+        const avgQuizScoreAll = avg(data.quiz_attempts.map(a => a.percentage));
 
         // Active in last 7 days
         const weekAgo = new Date(Date.now() - 7 * 86400000);
-        const activeStudents = data.students.filter(s => {
+        const activeStudentsWeek = data.students.filter(s => {
             const u = data.users.find(u => u.id === s.user_id);
             return u?.last_login && new Date(u.last_login) >= weekAgo;
         }).length;
 
-        // District performance
-        const districts = {};
-        for (const sc of activeSchools) {
-            const key = `${sc.district}|${sc.state}`;
-            if (!districts[key]) districts[key] = { district: sc.district, state: sc.state, schools: 0, students: 0, at_risk: 0, scores: [] };
-            districts[key].schools++;
-            districts[key].students += sc.student_count || 0;
-        }
-        // Add student data
-        for (const s of data.students) {
-            const u = data.users.find(u => u.id === s.user_id);
-            const sc = data.schools.find(sc => sc.id === u?.school_id);
-            if (!sc) continue;
-            const key = `${sc.district}|${sc.state}`;
-            if (districts[key]) {
-                if (s.is_at_risk) districts[key].at_risk++;
-                const attempts = data.quiz_attempts.filter(a => a.student_id === s.id);
-                attempts.forEach(a => districts[key].scores.push(a.percentage));
-            }
-        }
-        const districtPerf = Object.values(districts).map(d => ({
-            ...d, avg_score: d.scores.length > 0 ? (d.scores.reduce((a, b) => a + b, 0) / d.scores.length).toFixed(1) : '0.0',
-            scores: undefined,
-        }));
+        // Per-school performance (AdminDashboard expects this shape)
+        const schoolPerf = activeSchools.map(sc => {
+            const studentIds = getSchoolStudentIds(sc.id);
+            const schoolAttempts = data.quiz_attempts.filter(a => studentIds.includes(a.student_id));
+            const avgScore = avg(schoolAttempts.map(a => a.percentage));
+
+            const lessonsCompleted = data.progress.filter(p =>
+                studentIds.includes(p.student_id) && p.status === 'completed'
+            ).length;
+
+            const totalStudents = studentIds.length;
+            const totalTeachers = getSchoolTeacherCount(sc.id) || sc.teacher_count || 0;
+
+            return {
+                school_id: sc.id,
+                school_name: sc.name,
+                district: sc.district,
+                state: sc.state,
+                total_students: totalStudents,
+                total_teachers: totalTeachers,
+                avg_score: avgScore.toFixed(1),
+                total_lessons_completed: lessonsCompleted,
+            };
+        }).sort((a, b) => (b.total_students || 0) - (a.total_students || 0));
 
         // Dropout risk
         const dropoutRisk = data.students
@@ -52,37 +83,56 @@ router.get('/dashboard', (req, res) => {
                 const u = data.users.find(u => u.id === s.user_id);
                 const sc = data.schools.find(sc => sc.id === u?.school_id);
                 const daysInactive = u?.last_login ? Math.floor((Date.now() - new Date(u.last_login)) / 86400000) : 999;
-                return { id: s.id, full_name: u?.full_name, school_id: u?.school_id, school_name: sc?.name, class_grade: s.class_grade, streak_days: s.streak_days, xp_points: s.xp_points, last_login: u?.last_login, days_inactive: daysInactive };
+                return {
+                    id: s.id,
+                    full_name: u?.full_name,
+                    school_id: u?.school_id,
+                    school_name: sc?.name,
+                    class_grade: s.class_grade,
+                    streak_days: s.streak_days,
+                    xp_points: s.xp_points,
+                    last_login: u?.last_login,
+                    days_inactive: daysInactive,
+                };
             })
             .sort((a, b) => b.days_inactive - a.days_inactive)
             .slice(0, 50);
 
-        // Quiz trends (last 30 days)
+        // Quiz trends (last 30 days) — UI expects { period, avg_score, total_attempts }
         const thirtyAgo = new Date(Date.now() - 30 * 86400000);
         const recentAttempts = data.quiz_attempts.filter(a => a.completed_at && new Date(a.completed_at) >= thirtyAgo);
-        const byDate = {};
+        const byPeriod = {};
         for (const a of recentAttempts) {
-            const d = new Date(a.completed_at).toISOString().split('T')[0];
-            if (!byDate[d]) byDate[d] = { date: d, attempts: 0, scores: [] };
-            byDate[d].attempts++;
-            byDate[d].scores.push(a.percentage);
+            const key = isoDateKey(a.completed_at);
+            if (!byPeriod[key]) byPeriod[key] = { period: key, total_attempts: 0, scores: [] };
+            byPeriod[key].total_attempts++;
+            byPeriod[key].scores.push(a.percentage);
         }
-        const quizTrends = Object.values(byDate).map(d => ({
-            date: d.date, attempts: d.attempts,
-            avg_score: d.scores.length > 0 ? (d.scores.reduce((a, b) => a + b, 0) / d.scores.length).toFixed(1) : '0.0',
-        })).sort((a, b) => a.date.localeCompare(b.date));
+        const quizTrends = Object.values(byPeriod)
+            .map(p => ({
+                period: p.period,
+                date: p.period,
+                total_attempts: p.total_attempts,
+                avg_score: avg(p.scores).toFixed(1),
+            }))
+            .sort((a, b) => a.period.localeCompare(b.period));
 
-        const scholarshipCount = data.students.filter(s => s.scholarship_eligible).length;
+        // Overview counts based on actual records (not just school.student_count)
+        const totalStudents = data.students.length;
+        const totalTeachers = data.users.filter(u => u.role === 'teacher').length;
 
         res.json({
             overview: {
                 total_schools: activeSchools.length,
                 total_students: totalStudents,
                 total_teachers: totalTeachers,
-                active_students_7d: activeStudents,
-                scholarship_eligible: scholarshipCount,
+                total_lessons: totalLessons,
+                total_quiz_attempts: totalQuizAttempts,
+                avg_quiz_score: avgQuizScoreAll.toFixed(1),
+                active_students_week: activeStudentsWeek,
+                active_students_7d: activeStudentsWeek,
             },
-            district_performance: districtPerf,
+            district_performance: schoolPerf,
             dropout_risk: dropoutRisk,
             quiz_trends: quizTrends,
         });
@@ -103,11 +153,36 @@ router.get('/schools', (req, res) => {
             const attempts = data.quiz_attempts.filter(a => schoolStudents.some(s => s.id === a.student_id));
             const avgScore = attempts.length > 0 ? attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length : 0;
             const atRisk = schoolStudents.filter(s => s.is_at_risk).length;
-            return { ...sc, actual_students: schoolStudents.length, avg_score: avgScore.toFixed(1), at_risk_count: atRisk };
+
+            // Normalize fields expected by the client AdminDashboard
+            return {
+                ...sc,
+                total_students: sc.student_count ?? schoolStudents.length,
+                total_teachers: sc.teacher_count ?? getSchoolTeacherCount(sc.id),
+                school_type: sc.school_type || 'government',
+                has_internet: sc.has_internet ?? true,
+                actual_students: schoolStudents.length,
+                avg_score: avgScore.toFixed(1),
+                at_risk_count: atRisk,
+            };
         });
         res.json({ schools: result });
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch schools' });
+    }
+});
+
+// PATCH /api/admin/schools/:id/toggle — demo toggle active/inactive
+router.patch('/schools/:id/toggle', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const school = data.schools.find(s => s.id === id);
+        if (!school) return res.status(404).json({ error: 'School not found' });
+
+        school.is_active = !school.is_active;
+        res.json({ message: 'School status updated', school: { id: school.id, is_active: school.is_active } });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update school status' });
     }
 });
 
@@ -119,9 +194,72 @@ router.post('/curriculum', (req, res) => {
 // GET /api/admin/scholarships
 router.get('/scholarships', (req, res) => {
     try {
-        res.json({ scholarships: [], applications: [] });
+        // Demo scholarship schemes
+        const scholarships = [
+            {
+                id: 1,
+                name: 'Merit + Attendance Scholarship',
+                description: 'For students with consistent progress and strong quiz performance.',
+                amount: 5000,
+                min_score: 70,
+                min_xp: 200,
+                eligible_grades: '5-10',
+                deadline: new Date(Date.now() + 30 * 86400000).toISOString(),
+                is_active: true,
+            },
+            {
+                id: 2,
+                name: 'STEM Boost Grant',
+                description: 'Encourages Science and Math excellence among rural learners.',
+                amount: 3000,
+                min_score: 60,
+                min_xp: 150,
+                eligible_grades: '6-9',
+                deadline: new Date(Date.now() + 45 * 86400000).toISOString(),
+                is_active: true,
+            },
+        ];
+        res.json({ scholarships, applications: [] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch scholarships' });
+    }
+});
+
+// GET /api/admin/scholarships/eligible — computed eligibility list
+router.get('/scholarships/eligible', (req, res) => {
+    try {
+        const schemes = [
+            { id: 1, name: 'Merit + Attendance Scholarship', min_score: 70, min_xp: 200 },
+            { id: 2, name: 'STEM Boost Grant', min_score: 60, min_xp: 150 },
+        ];
+
+        const list = data.students.map(s => {
+            const u = data.users.find(u => u.id === s.user_id);
+            const school = data.schools.find(sc => sc.id === u?.school_id);
+            const avgScore = getStudentAvgScore(s.id);
+            const eligibleFor = schemes
+                .filter(sc => (s.xp_points || 0) >= sc.min_xp && avgScore >= sc.min_score)
+                .map(sc => ({ id: sc.id, name: sc.name }));
+
+            return {
+                id: s.id,
+                full_name: u?.full_name,
+                school_id: u?.school_id,
+                school_name: school?.name,
+                class_grade: s.class_grade,
+                section: s.section,
+                xp_points: s.xp_points,
+                avg_score: avgScore.toFixed(1),
+                streak_days: s.streak_days,
+                eligible_for: eligibleFor,
+            };
+        })
+            .filter(s => s.eligible_for.length > 0)
+            .sort((a, b) => (b.xp_points || 0) - (a.xp_points || 0) || parseFloat(b.avg_score) - parseFloat(a.avg_score));
+
+        res.json({ eligible_students: list.slice(0, 100) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to compute eligible students' });
     }
 });
 

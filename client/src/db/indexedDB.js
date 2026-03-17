@@ -1,12 +1,11 @@
-/* ====================================================
-   IndexedDB - Offline Storage for Rural Learning System
-   Complete local database with all stores needed
-   ==================================================== */
-
 const DB_NAME = 'GramShikshaDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance = null;
+
+function resetInstance() {
+    dbInstance = null;
+}
 
 export function openDB() {
     if (dbInstance) return Promise.resolve(dbInstance);
@@ -83,10 +82,23 @@ export function openDB() {
             if (!db.objectStoreNames.contains('leaderboard')) {
                 db.createObjectStore('leaderboard', { keyPath: 'id', autoIncrement: true });
             }
+
+            // Homework cache
+            if (!db.objectStoreNames.contains('homework')) {
+                const hwStore = db.createObjectStore('homework', { keyPath: 'id' });
+                hwStore.createIndex('class_grade', 'class_grade', { unique: false });
+                hwStore.createIndex('school_id', 'school_id', { unique: false });
+            }
         };
 
         request.onsuccess = (event) => {
             dbInstance = event.target.result;
+            // Reset the cached instance if the browser closes or upgrades the DB
+            dbInstance.onclose = resetInstance;
+            dbInstance.onversionchange = () => {
+                dbInstance.close();
+                resetInstance();
+            };
             resolve(dbInstance);
         };
 
@@ -96,9 +108,28 @@ export function openDB() {
     });
 }
 
+// Safe wrapper: detects stale/closing connections and retries once
+async function getDB() {
+    let db = await openDB();
+    // If the connection's closePending flag is set, the object is dead
+    try {
+        // Quick probe — creating a zero-store transaction will throw
+        // immediately if the connection is closing.
+        db.transaction(db.objectStoreNames[0] || 'user_profile', 'readonly');
+        return db;
+    } catch (e) {
+        if (e.name === 'InvalidStateError' || /closing/i.test(e.message)) {
+            resetInstance();
+            return openDB();
+        }
+        // For empty-DB edge case just return what we have
+        return db;
+    }
+}
+
 // Generic CRUD operations
 export async function dbPut(storeName, data) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
@@ -109,7 +140,7 @@ export async function dbPut(storeName, data) {
 }
 
 export async function dbGet(storeName, key) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
@@ -120,7 +151,7 @@ export async function dbGet(storeName, key) {
 }
 
 export async function dbGetAll(storeName) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
@@ -131,7 +162,7 @@ export async function dbGetAll(storeName) {
 }
 
 export async function dbDelete(storeName, key) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
@@ -142,7 +173,7 @@ export async function dbDelete(storeName, key) {
 }
 
 export async function dbClear(storeName) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
@@ -153,19 +184,36 @@ export async function dbClear(storeName) {
 }
 
 export async function dbGetByIndex(storeName, indexName, value) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const index = store.index(indexName);
-        const request = index.getAll(value);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+
+        // Booleans are not valid IndexedDB keys — fall back to a cursor scan
+        if (typeof value === 'boolean') {
+            const results = [];
+            const cursorReq = index.openCursor();
+            cursorReq.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    if (cursor.value[indexName] === value) results.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(results);
+                }
+            };
+            cursorReq.onerror = () => reject(cursorReq.error);
+        } else {
+            const request = index.getAll(value);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        }
     });
 }
 
 export async function dbPutBulk(storeName, items) {
-    const db = await openDB();
+    const db = await getDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
@@ -214,7 +262,7 @@ export async function getUnsyncedData() {
 
 // Mark items as synced
 export async function markAsSynced(storeName, keys) {
-    const db = await openDB();
+    const db = await getDB();
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
     for (const key of keys) {

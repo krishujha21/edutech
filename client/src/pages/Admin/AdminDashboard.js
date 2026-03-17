@@ -10,6 +10,7 @@ export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [schools, setSchools] = useState([]);
   const [scholarships, setScholarships] = useState([]);
+  const [eligibleStudents, setEligibleStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [curriculumForm, setCurriculumForm] = useState({
@@ -27,7 +28,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (activeTab === 'schools') loadSchools();
-    if (activeTab === 'scholarships') loadScholarships();
+    if (activeTab === 'scholarships') {
+      loadScholarships();
+      loadEligibleStudents();
+    }
   }, [activeTab]);
 
   async function loadDashboard() {
@@ -56,6 +60,25 @@ export default function AdminDashboard() {
       setScholarships(data.scholarships || []);
     } catch (err) {
       console.error('Scholarships load error:', err);
+    }
+  }
+
+  async function loadEligibleStudents() {
+    try {
+      const data = await apiFetch('/admin/scholarships/eligible');
+      setEligibleStudents(data.eligible_students || []);
+    } catch (err) {
+      console.error('Eligible students load error:', err);
+      setEligibleStudents([]);
+    }
+  }
+
+  async function toggleSchool(id) {
+    try {
+      await apiFetch(`/admin/schools/${id}/toggle`, { method: 'PATCH' });
+      await loadSchools();
+    } catch (err) {
+      console.error('School toggle error:', err);
     }
   }
 
@@ -107,11 +130,10 @@ export default function AdminDashboard() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              activeTab === tab.id
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+              }`}
           >{tab.label}</button>
         ))}
       </div>
@@ -242,6 +264,7 @@ export default function AdminDashboard() {
                     <th className="p-3 font-medium text-gray-600">Internet</th>
                     <th className="p-3 font-medium text-gray-600">Students</th>
                     <th className="p-3 font-medium text-gray-600">Status</th>
+                    <th className="p-3 font-medium text-gray-600">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -251,9 +274,8 @@ export default function AdminDashboard() {
                       <td className="p-3 text-gray-500">{s.district}</td>
                       <td className="p-3 text-gray-500">{s.state}</td>
                       <td className="p-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          s.school_type === 'government' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                        }`}>{s.school_type}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.school_type === 'government' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                          }`}>{s.school_type}</span>
                       </td>
                       <td className="p-3">
                         {s.has_internet ? (
@@ -264,9 +286,17 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-3">{s.total_students || '—'}</td>
                       <td className="p-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                        }`}>{s.is_active ? 'Active' : 'Inactive'}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}>{s.is_active ? 'Active' : 'Inactive'}</span>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => toggleSchool(s.id)}
+                          className={`text-xs px-3 py-1 rounded-lg font-medium ${s.is_active
+                              ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                              : 'bg-green-50 text-green-700 hover:bg-green-100'
+                            }`}
+                        >{s.is_active ? 'Deactivate' : 'Activate'}</button>
                       </td>
                     </tr>
                   ))}
@@ -290,9 +320,8 @@ export default function AdminDashboard() {
                   <div key={sch.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-bold text-gray-800">{sch.name}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        sch.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                      }`}>{sch.is_active ? 'Active' : 'Closed'}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${sch.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        }`}>{sch.is_active ? 'Active' : 'Closed'}</span>
                     </div>
                     <p className="text-sm text-gray-500 mb-3">{sch.description}</p>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -343,6 +372,48 @@ export default function AdminDashboard() {
                 <p className="text-2xl font-bold text-amber-700">{overview.active_students_week || 0}</p>
                 <p className="text-xs text-gray-500">Active This Week</p>
               </div>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="font-bold text-gray-800 mb-3">✅ Eligible Students (Top)</h3>
+              {eligibleStudents.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-6">No eligible students found yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left">
+                        <th className="p-3 font-medium text-gray-600">Student</th>
+                        <th className="p-3 font-medium text-gray-600">School</th>
+                        <th className="p-3 font-medium text-gray-600">Class</th>
+                        <th className="p-3 font-medium text-gray-600">XP</th>
+                        <th className="p-3 font-medium text-gray-600">Avg Score</th>
+                        <th className="p-3 font-medium text-gray-600">Schemes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {eligibleStudents.slice(0, 25).map(s => (
+                        <tr key={s.id} className="border-t hover:bg-gray-50">
+                          <td className="p-3 font-medium">{s.full_name}</td>
+                          <td className="p-3 text-gray-500">{s.school_name || '—'}</td>
+                          <td className="p-3">{s.class_grade}{s.section || ''}</td>
+                          <td className="p-3">⭐ {s.xp_points}</td>
+                          <td className="p-3">{parseFloat(s.avg_score).toFixed(1)}%</td>
+                          <td className="p-3">
+                            <div className="flex flex-wrap gap-1">
+                              {(s.eligible_for || []).map(sc => (
+                                <span key={sc.id} className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                                  {sc.name}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </Card>
         </div>
