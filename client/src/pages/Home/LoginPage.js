@@ -10,7 +10,7 @@ const DEMO_ACCOUNTS = [
     { username: 'gayatri', label: 'Gayatri', role: 'student', emoji: '👩‍🎓' },
     { username: 'mahi', label: 'Mahi', role: 'student', emoji: '👩‍🎓' },
     { username: 'oishani', label: 'Oishani', role: 'student', emoji: '👩‍🎓' },
-    { username: 'krishu', label: 'Krishu', role: 'teacher', emoji: '👨‍🏫' },
+    { username: 'sonali', label: 'Sonali', role: 'teacher', emoji: '👩‍🏫' },
     { username: 'krishu_admin', label: 'Krishu (Admin)', role: 'admin', emoji: '🛡️' },
 ];
 

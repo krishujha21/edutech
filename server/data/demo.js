@@ -19,7 +19,7 @@ const users = [
     { id: 2, uuid: 'u-002', username: 'gayatri', password_hash: hash('12345'), role: 'student', full_name: 'Gayatri', email: 'gayatri@demo.com', phone: '9876543211', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
     { id: 3, uuid: 'u-003', username: 'mahi', password_hash: hash('12345'), role: 'student', full_name: 'Mahi', email: 'mahi@demo.com', phone: '9876543212', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
     { id: 4, uuid: 'u-004', username: 'oishani', password_hash: hash('12345'), role: 'student', full_name: 'Oishani', email: 'oishani@demo.com', phone: '9876543213', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
-    { id: 5, uuid: 'u-005', username: 'krishu', password_hash: hash('12345'), role: 'teacher', full_name: 'Krishu', email: 'krishu@demo.com', phone: '9876543214', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
+    { id: 5, uuid: 'u-005', username: 'sonali', password_hash: hash('12345'), role: 'teacher', full_name: 'Sonali', email: 'sonali@demo.com', phone: '9876543214', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
     { id: 6, uuid: 'u-006', username: 'krishu_admin', password_hash: hash('12345'), role: 'govt_admin', full_name: 'Krishu (Admin)', email: 'krishu.admin@demo.com', phone: '9876543215', preferred_lang: 'en', school_id: null, avatar_url: null, last_login: new Date(), last_sync: null },
 ];
 let nextUserId = users.length + 1;
