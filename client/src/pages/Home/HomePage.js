@@ -64,7 +64,7 @@ export default function HomePage() {
 
             {/* Features */}
             <section className="max-w-6xl mx-auto px-4 py-16">
-                <h2 className="text-3xl font-bold text-center text-gray-800 mb-10">Why GramShiksha?</h2>
+                <h2 className="text-3xl font-bold text-center text-gray-800 mb-10">Why VidhyaSetu?</h2>
                 <div className="grid md:grid-cols-3 gap-6">
                     {features.map((f, i) => (
                         <Card key={i} className="text-center hover:shadow-lg transition-shadow">
@@ -115,9 +115,9 @@ export default function HomePage() {
             {/* Footer */}
             <footer className="bg-gray-800 text-gray-400 py-8 px-4">
                 <div className="max-w-6xl mx-auto text-center">
-                    <p className="text-lg font-bold text-white mb-2">📚 GramShiksha</p>
+                    <p className="text-lg font-bold text-white mb-2">📚 VidhyaSetu</p>
                     <p className="text-sm">Empowering rural education through technology</p>
-                    <p className="text-xs mt-4">© 2026 GramShiksha. Built with ❤️ for rural India.</p>
+                    <p className="text-xs mt-4">© 2026 VidhyaSetu. Built with ❤️ for rural India.</p>
                 </div>
             </footer>
         </div>

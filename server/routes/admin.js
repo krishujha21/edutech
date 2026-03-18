@@ -121,6 +121,9 @@ router.get('/dashboard', (req, res) => {
         const totalStudents = data.students.length;
         const totalTeachers = data.users.filter(u => u.role === 'teacher').length;
 
+        const overallScreenTimeSecs = data.users.reduce((sum, u) => sum + (u.total_screen_time_secs || 0), 0);
+        const overallSiteVisits = data.users.reduce((sum, u) => sum + (u.site_visits || 0), 0);
+
         res.json({
             overview: {
                 total_schools: activeSchools.length,
@@ -131,6 +134,8 @@ router.get('/dashboard', (req, res) => {
                 avg_quiz_score: avgQuizScoreAll.toFixed(1),
                 active_students_week: activeStudentsWeek,
                 active_students_7d: activeStudentsWeek,
+                overall_screen_time_secs: overallScreenTimeSecs,
+                overall_site_visits: overallSiteVisits,
             },
             district_performance: schoolPerf,
             dropout_risk: dropoutRisk,

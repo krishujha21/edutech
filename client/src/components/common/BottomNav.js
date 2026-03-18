@@ -14,7 +14,7 @@ export default function BottomNav() {
     const navItems = [
         { to: '/student', icon: '🏠', label: t('home') },
         { to: '/student/lessons', icon: '📖', label: t('lessons') },
-        { to: '/student/quizzes', icon: '✏️', label: t('quizzes') },
+        { to: '/student/study', icon: '🎮', label: t('study') },
         { to: '/student/leaderboard', icon: '🏆', label: t('leaderboard') },
         { to: '/student/profile', icon: '👤', label: t('profile') },
     ];

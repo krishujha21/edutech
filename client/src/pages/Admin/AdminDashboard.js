@@ -131,8 +131,8 @@ export default function AdminDashboard() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
           >{tab.label}</button>
         ))}
@@ -154,6 +154,11 @@ export default function AdminDashboard() {
             <StatCard icon="📊" label="Avg Quiz Score" value={`${parseFloat(overview.avg_quiz_score || 0).toFixed(1)}%`} color="blue" />
             <StatCard icon="🔥" label="Active This Week" value={overview.active_students_week || 0} color="red" />
             <StatCard icon="⚠️" label="Dropout Risk" value={dropoutRisk.length} color="red" />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatCard icon="⏱️" label="Overall Screen Time" value={`${Math.round((overview.overall_screen_time_secs || 0) / 60)} mins`} color="purple" />
+            <StatCard icon="👀" label="Site Visits" value={overview.overall_site_visits || 0} color="yellow" />
           </div>
 
           {/* District Performance */}
@@ -293,8 +298,8 @@ export default function AdminDashboard() {
                         <button
                           onClick={() => toggleSchool(s.id)}
                           className={`text-xs px-3 py-1 rounded-lg font-medium ${s.is_active
-                              ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                              : 'bg-green-50 text-green-700 hover:bg-green-100'
+                            ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                            : 'bg-green-50 text-green-700 hover:bg-green-100'
                             }`}
                         >{s.is_active ? 'Deactivate' : 'Activate'}</button>
                       </td>

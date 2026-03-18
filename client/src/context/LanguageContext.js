@@ -2,11 +2,12 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const translations = {
     en: {
-        app_name: 'GramShiksha',
+        app_name: 'VidhyaSetu',
         tagline: 'Learn Anytime, Anywhere — Even Offline',
         home: 'Home',
         lessons: 'Lessons',
         quizzes: 'Quizzes',
+        study: 'Study',
         progress: 'Progress',
         leaderboard: 'Leaderboard',
         profile: 'Profile',
@@ -38,11 +39,12 @@ const translations = {
         announcements: 'Announcements',
     },
     hi: {
-        app_name: 'ग्रामशिक्षा',
+        app_name: 'VidhyaSetu',
         tagline: 'कभी भी, कहीं भी सीखें — ऑफ़लाइन भी',
         home: 'होम',
         lessons: 'पाठ',
         quizzes: 'प्रश्नोत्तरी',
+        study: 'अध्ययन',
         progress: 'प्रगति',
         leaderboard: 'लीडरबोर्ड',
         profile: 'प्रोफ़ाइल',
@@ -74,11 +76,12 @@ const translations = {
         announcements: 'घोषणाएं',
     },
     ta: {
-        app_name: 'கிராமசிக்ஷா',
+        app_name: 'VidhyaSetu',
         tagline: 'எப்போதும், எங்கும் கற்றுக்கொள்ளுங்கள் — ஆஃப்லைன் கூட',
         home: 'முகப்பு',
         lessons: 'பாடங்கள்',
         quizzes: 'வினாடி வினா',
+        study: 'படிப்பு',
         progress: 'முன்னேற்றம்',
         leaderboard: 'தரவரிசை',
         profile: 'சுயவிவரம்',

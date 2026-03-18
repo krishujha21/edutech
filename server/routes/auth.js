@@ -26,6 +26,8 @@ router.post('/register', async (req, res) => {
             preferred_lang: preferred_lang || 'en',
             school_id: school_id || null, avatar_url: null,
             last_login: new Date(), last_sync: null,
+            total_screen_time_secs: 0,
+            site_visits: 0,
         });
 
         if (userRole === 'student') {
@@ -46,7 +48,12 @@ router.post('/register', async (req, res) => {
 
         res.status(201).json({
             message: 'Registration successful', token,
-            user: { id: userId, uuid, username, role: userRole, full_name, preferred_lang: preferred_lang || 'en', school_id },
+            user: {
+                id: userId, uuid, username, role: userRole,
+                full_name, preferred_lang: preferred_lang || 'en', school_id,
+                total_screen_time_secs: 0,
+                site_visits: 0,
+            },
         });
     } catch (err) {
         console.error('Registration error:', err);
@@ -79,6 +86,8 @@ router.post('/login', async (req, res) => {
                 current_level: student?.current_level || 1,
                 streak_days: student?.streak_days || 0,
                 avatar_url: user.avatar_url,
+                total_screen_time_secs: user.total_screen_time_secs || 0,
+                site_visits: user.site_visits || 0,
             },
         });
     } catch (err) {
@@ -106,6 +115,8 @@ router.get('/me', authenticateToken, (req, res) => {
                 current_level: student?.current_level || 1,
                 streak_days: student?.streak_days || 0,
                 section: student?.section || null,
+                total_screen_time_secs: user.total_screen_time_secs || 0,
+                site_visits: user.site_visits || 0,
             },
         });
     } catch (err) {

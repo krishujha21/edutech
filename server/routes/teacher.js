@@ -16,6 +16,32 @@ function getStudentUser(student) {
     return data.users.find(u => u.id === student.user_id);
 }
 
+function computeGamifiedClassSummary(schoolStudents) {
+    const byGrade = {};
+    for (const s of schoolStudents) {
+        if (!byGrade[s.class_grade]) byGrade[s.class_grade] = [];
+        byGrade[s.class_grade].push(s);
+    }
+
+    const grades = Object.keys(byGrade).map(g => parseInt(g)).sort((a, b) => a - b);
+    return grades.map(g => {
+        const students = byGrade[g];
+        const studentIds = new Set(students.map(s => s.id));
+        const totalLessons = data.lessons.filter(l => l.is_published && l.class_grade === g).length;
+        const totalQuizzes = data.quizzes.filter(q => q.is_published && q.class_grade === g).length;
+        const completedLessons = data.progress.filter(p => studentIds.has(p.student_id) && p.status === 'completed').length;
+        const quizAttempts = data.quiz_attempts.filter(a => studentIds.has(a.student_id)).length;
+        return {
+            class_grade: g,
+            students: students.length,
+            total_lessons: totalLessons,
+            total_quizzes: totalQuizzes,
+            lessons_completed: completedLessons,
+            quiz_attempts: quizAttempts,
+        };
+    });
+}
+
 // GET /api/teacher/dashboard
 router.get('/dashboard', (req, res) => {
     try {
@@ -88,6 +114,9 @@ router.get('/dashboard', (req, res) => {
             at_risk_students: atRisk,
             subject_performance: subjectPerf,
             class_performance: classPerf,
+            gamified_study: {
+                by_class: computeGamifiedClassSummary(schoolStudents),
+            },
         });
     } catch (err) {
         console.error('Teacher dashboard error:', err);
@@ -118,6 +147,8 @@ router.get('/students', (req, res) => {
                 ...s, full_name: u?.full_name, phone: u?.phone, last_login: u?.last_login,
                 lessons_completed: lessonsCompleted, avg_score: avgScore.toFixed(1),
                 screen_time_secs: screenTimeSecs,
+                app_screen_time_secs: u?.total_screen_time_secs || 0,
+                site_visits: u?.site_visits || 0,
             };
         }).sort((a, b) => a.class_grade - b.class_grade || (a.full_name || '').localeCompare(b.full_name || ''));
 
@@ -181,12 +212,16 @@ router.get('/students/:id', (req, res) => {
                 phone: user.phone,
                 email: user.email,
                 last_login: user.last_login,
+                app_screen_time_secs: user.total_screen_time_secs || 0,
+                site_visits: user.site_visits || 0,
             },
             stats: {
                 lessons_completed: lessonsCompleted,
                 quiz_attempts: attempts.length,
                 avg_score: avgScore.toFixed(1),
                 screen_time_secs: screenTimeSecs,
+                app_screen_time_secs: user.total_screen_time_secs || 0,
+                site_visits: user.site_visits || 0,
             },
             progress,
             attempts,

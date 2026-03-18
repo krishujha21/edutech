@@ -42,7 +42,7 @@ export default function RegisterPage() {
                     <div className="text-center mb-6">
                         <span className="text-5xl">📝</span>
                         <h1 className="text-2xl font-bold text-gray-800 mt-2">{t('register')}</h1>
-                        <p className="text-gray-500 text-sm mt-1">Join GramShiksha for free</p>
+                        <p className="text-gray-500 text-sm mt-1">Join VidhyaSetu for free</p>
                     </div>
 
                     {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">{error}</div>}

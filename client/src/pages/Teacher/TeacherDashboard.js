@@ -4,6 +4,15 @@ import { useLanguage } from '../../context/LanguageContext';
 import { apiFetch } from '../../config/api';
 import { Card, StatCard, LoadingSpinner, ProgressBar } from '../../components/common/UI';
 
+function formatDuration(secs) {
+    const s = Math.max(0, Math.floor(secs || 0));
+    const mins = Math.floor(s / 60);
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+}
+
 export default function TeacherDashboard() {
     const { user } = useAuth();
     const { t } = useLanguage();
@@ -242,6 +251,39 @@ export default function TeacherDashboard() {
                         </div>
                     </Card>
 
+                    {/* Gamified Study */}
+                    {dashboard.gamified_study?.by_class?.length > 0 && (
+                        <Card className="mb-6">
+                            <h2 className="font-bold text-gray-800 mb-4">🎮 Gamified Study (By Class)</h2>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50 text-left">
+                                            <th className="p-3 font-medium text-gray-600">Class</th>
+                                            <th className="p-3 font-medium text-gray-600">Students</th>
+                                            <th className="p-3 font-medium text-gray-600">Lessons</th>
+                                            <th className="p-3 font-medium text-gray-600">Quizzes</th>
+                                            <th className="p-3 font-medium text-gray-600">Lesson Completions</th>
+                                            <th className="p-3 font-medium text-gray-600">Quiz Attempts</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {dashboard.gamified_study.by_class.map((c) => (
+                                            <tr key={c.class_grade} className="border-t hover:bg-gray-50">
+                                                <td className="p-3 font-medium">Class {c.class_grade}</td>
+                                                <td className="p-3">{c.students}</td>
+                                                <td className="p-3">{c.total_lessons}</td>
+                                                <td className="p-3">{c.total_quizzes}</td>
+                                                <td className="p-3">{c.lessons_completed}</td>
+                                                <td className="p-3">{c.quiz_attempts}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    )}
+
                     {/* At-Risk Students */}
                     {dashboard.at_risk_students?.length > 0 && (
                         <Card>
@@ -299,6 +341,8 @@ export default function TeacherDashboard() {
                                     <th className="p-3 font-medium text-gray-600">Lessons</th>
                                     <th className="p-3 font-medium text-gray-600">Avg Score</th>
                                     <th className="p-3 font-medium text-gray-600">Streak</th>
+                                    <th className="p-3 font-medium text-gray-600">App Screen Time</th>
+                                    <th className="p-3 font-medium text-gray-600">Visits</th>
                                     <th className="p-3 font-medium text-gray-600">Status</th>
                                     <th className="p-3 font-medium text-gray-600">Action</th>
                                 </tr>
@@ -312,6 +356,8 @@ export default function TeacherDashboard() {
                                         <td className="p-3">📖 {s.lessons_completed}</td>
                                         <td className="p-3">{parseFloat(s.avg_score).toFixed(0)}%</td>
                                         <td className="p-3">🔥 {s.streak_days}</td>
+                                        <td className="p-3">{formatDuration(s.app_screen_time_secs || 0)}</td>
+                                        <td className="p-3">{s.site_visits || 0}</td>
                                         <td className="p-3">
                                             {s.is_at_risk ? (
                                                 <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">At Risk</span>
@@ -355,6 +401,8 @@ export default function TeacherDashboard() {
                                             <p className="text-xs text-gray-500">Class {studentDetail.student.class_grade}{studentDetail.student.section} • Streak {studentDetail.student.streak_days} days</p>
                                             <p className="text-xs text-gray-500">Last login: {studentDetail.student.last_login ? new Date(studentDetail.student.last_login).toLocaleString() : '—'}</p>
                                             <p className="text-xs text-gray-500">Screen time: {Math.round((studentDetail.stats.screen_time_secs || 0) / 60)} mins</p>
+                                            <p className="text-xs text-gray-500">App screen time: {formatDuration(studentDetail.stats.app_screen_time_secs || 0)}</p>
+                                            <p className="text-xs text-gray-500">Site visits: {studentDetail.stats.site_visits || 0}</p>
                                         </div>
 
                                         <div className="bg-gray-50 rounded-lg p-3">

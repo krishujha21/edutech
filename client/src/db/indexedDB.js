@@ -1,4 +1,4 @@
-const DB_NAME = 'GramShikshaDB';
+const DB_NAME = 'VidhyaSetuDB';
 const DB_VERSION = 2;
 
 let dbInstance = null;

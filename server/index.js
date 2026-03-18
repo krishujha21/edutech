@@ -27,6 +27,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/homework', require('./routes/homework'));
 app.use('/api/schools', require('./routes/schools'));
 app.use('/api/announcements', require('./routes/announcements'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/study', require('./routes/study'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -46,7 +48,7 @@ app.use((err, req, res, next) => {
 // Only listen when running locally (not as a Vercel serverless function)
 if (!process.env.VERCEL) {
     app.listen(PORT, () => {
-        console.log(`\n🚀 Rural Learning API running at http://localhost:${PORT}`);
+        console.log(`\n🚀 VidhyaSetu API running at http://localhost:${PORT}`);
         console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}\n`);
     });
 }

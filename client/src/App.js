@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 import Navbar from './components/common/Navbar';
 import BottomNav from './components/common/BottomNav';
+import AnalyticsTracker from './components/common/AnalyticsTracker';
 
 // Pages
 import HomePage from './pages/Home/HomePage';
@@ -19,6 +20,7 @@ import QuizList from './pages/Student/QuizList';
 import QuizPlay from './pages/Student/QuizPlay';
 import Leaderboard from './pages/Student/Leaderboard';
 import StudentProfile from './pages/Student/StudentProfile';
+import GamifiedStudy from './pages/Student/GamifiedStudy';
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import NotFound from './pages/NotFound';
@@ -36,6 +38,7 @@ function AppRoutes() {
     return (
         <div className={`min-h-screen transition-colors duration-300 ${dark ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
             <Navbar />
+            <AnalyticsTracker />
             <main className="pb-16 md:pb-0">
                 <Routes>
                     {/* Public */}
@@ -50,6 +53,7 @@ function AppRoutes() {
                     <Route path="/student/quizzes" element={<ProtectedRoute roles={['student']}><QuizList /></ProtectedRoute>} />
                     <Route path="/student/quizzes/:id" element={<ProtectedRoute roles={['student']}><QuizPlay /></ProtectedRoute>} />
                     <Route path="/student/leaderboard" element={<ProtectedRoute roles={['student']}><Leaderboard /></ProtectedRoute>} />
+                    <Route path="/student/study" element={<ProtectedRoute roles={['student']}><GamifiedStudy /></ProtectedRoute>} />
                     <Route path="/student/profile" element={<ProtectedRoute roles={['student']}><StudentProfile /></ProtectedRoute>} />
 
                     {/* Teacher */}

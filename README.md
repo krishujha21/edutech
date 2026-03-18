@@ -1,4 +1,4 @@
-# 📚 GramShiksha — Offline-First Rural Learning System (Class 5–10)
+# 📚 VidhyaSetu — Offline-First Rural Learning System (Class 5–10)
 
 > An offline-first Progressive Web App designed to bring quality education to rural India's 250M+ students, even without reliable internet.
 
@@ -19,7 +19,7 @@
 
 ## 💡 Solution
 
-**GramShiksha** is a complete offline-first learning platform that:
+**VidhyaSetu** is a complete offline-first learning platform that:
 - Works **without internet** using IndexedDB + Service Workers
 - **Auto-syncs** when connectivity is available
 - Provides **gamified learning** (XP, levels, streaks, badges, leaderboards)
@@ -367,5 +367,5 @@ This project is licensed under the MIT License.
 
 <p align="center">
   Made with ❤️ for Rural India's Students<br/>
-  <strong>📚 GramShiksha — शिक्षा सबके लिए</strong>
+  <strong>📚 VidhyaSetu — शिक्षा सबके लिए</strong>
 </p>

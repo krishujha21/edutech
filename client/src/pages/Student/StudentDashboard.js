@@ -144,6 +144,18 @@ export default function StudentDashboard() {
                 </Link>
             </div>
 
+            <Link to="/student/study" className="block mb-6">
+                <div className="bg-indigo-600 text-white rounded-xl p-4 hover:bg-indigo-700 transition-colors">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="font-bold">🎮 Gamified Study</p>
+                            <p className="text-xs opacity-80">Quests for Class {user?.class_grade}</p>
+                        </div>
+                        <span className="text-sm font-medium">Open →</span>
+                    </div>
+                </div>
+            </Link>
+
             {/* Badges */}
             {summary?.badges && summary.badges.length > 0 && (
                 <div className="mb-6">

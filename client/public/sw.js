@@ -1,10 +1,10 @@
 /* ====================================================
-   GramShiksha - Service Worker for Offline-First PWA
+    VidhyaSetu - Service Worker for Offline-First PWA
    ==================================================== */
 
-const CACHE_NAME = 'gramshiksha-v1';
-const STATIC_CACHE = 'gramshiksha-static-v1';
-const DATA_CACHE = 'gramshiksha-data-v1';
+const CACHE_NAME = 'vidhyasetu-v1';
+const STATIC_CACHE = 'vidhyasetu-static-v1';
+const DATA_CACHE = 'vidhyasetu-data-v1';
 
 const STATIC_ASSETS = [
     '/',

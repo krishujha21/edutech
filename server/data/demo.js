@@ -1,5 +1,5 @@
 // ============================================================
-// GramShiksha — In-Memory Demo Data Store
+// VidhyaSetu — In-Memory Demo Data Store
 // All data lives in RAM; resets on server restart.
 // ============================================================
 const bcrypt = require('bcryptjs');
@@ -15,12 +15,12 @@ const schools = [
 
 // ---------- USERS ----------
 const users = [
-    { id: 1, uuid: 'u-001', username: 'sharanya', password_hash: hash('12345'), role: 'student', full_name: 'Sharanya', email: 'sharanya@demo.com', phone: '9876543210', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
-    { id: 2, uuid: 'u-002', username: 'gayatri', password_hash: hash('12345'), role: 'student', full_name: 'Gayatri', email: 'gayatri@demo.com', phone: '9876543211', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
-    { id: 3, uuid: 'u-003', username: 'mahi', password_hash: hash('12345'), role: 'student', full_name: 'Mahi', email: 'mahi@demo.com', phone: '9876543212', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
-    { id: 4, uuid: 'u-004', username: 'oishani', password_hash: hash('12345'), role: 'student', full_name: 'Oishani', email: 'oishani@demo.com', phone: '9876543213', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
-    { id: 5, uuid: 'u-005', username: 'sonali', password_hash: hash('12345'), role: 'teacher', full_name: 'Sonali', email: 'sonali@demo.com', phone: '9876543214', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null },
-    { id: 6, uuid: 'u-006', username: 'krishu_admin', password_hash: hash('12345'), role: 'govt_admin', full_name: 'Krishu (Admin)', email: 'krishu.admin@demo.com', phone: '9876543215', preferred_lang: 'en', school_id: null, avatar_url: null, last_login: new Date(), last_sync: null },
+    { id: 1, uuid: 'u-001', username: 'sharanya', password_hash: hash('12345'), role: 'student', full_name: 'Sharanya', email: 'sharanya@demo.com', phone: '9876543210', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null, total_screen_time_secs: 0, site_visits: 0 },
+    { id: 2, uuid: 'u-002', username: 'gayatri', password_hash: hash('12345'), role: 'student', full_name: 'Gayatri', email: 'gayatri@demo.com', phone: '9876543211', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null, total_screen_time_secs: 0, site_visits: 0 },
+    { id: 3, uuid: 'u-003', username: 'mahi', password_hash: hash('12345'), role: 'student', full_name: 'Mahi', email: 'mahi@demo.com', phone: '9876543212', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null, total_screen_time_secs: 0, site_visits: 0 },
+    { id: 4, uuid: 'u-004', username: 'oishani', password_hash: hash('12345'), role: 'student', full_name: 'Oishani', email: 'oishani@demo.com', phone: '9876543213', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null, total_screen_time_secs: 0, site_visits: 0 },
+    { id: 5, uuid: 'u-005', username: 'sonali', password_hash: hash('12345'), role: 'teacher', full_name: 'Sonali', email: 'sonali@demo.com', phone: '9876543214', preferred_lang: 'en', school_id: 1, avatar_url: null, last_login: new Date(), last_sync: null, total_screen_time_secs: 0, site_visits: 0 },
+    { id: 6, uuid: 'u-006', username: 'krishu_admin', password_hash: hash('12345'), role: 'govt_admin', full_name: 'Krishu (Admin)', email: 'krishu.admin@demo.com', phone: '9876543215', preferred_lang: 'en', school_id: null, avatar_url: null, last_login: new Date(), last_sync: null, total_screen_time_secs: 0, site_visits: 0 },
 ];
 let nextUserId = users.length + 1;
 
@@ -238,7 +238,7 @@ const daily_targets = [
 
 // ---------- ANNOUNCEMENTS ----------
 const announcements = [
-    { id: 1, uuid: 'ann-001', title: 'Welcome to GramShiksha!', content: 'Start learning today with fun lessons and quizzes. Complete daily targets to earn XP and climb the leaderboard!', author_id: 6, target_role: 'all', target_school: null, target_grade: null, priority: 'high', is_active: true, expires_at: null, created_at: new Date('2026-03-01') },
+    { id: 1, uuid: 'ann-001', title: 'Welcome to VidhyaSetu!', content: 'Start learning today with fun lessons and quizzes. Complete daily targets to earn XP and climb the leaderboard!', author_id: 6, target_role: 'all', target_school: null, target_grade: null, priority: 'high', is_active: true, expires_at: null, created_at: new Date('2026-03-01') },
     { id: 2, uuid: 'ann-002', title: 'Science Fair Coming Up', content: 'Annual Science Fair is on March 25. Students of Class 6-8 can participate. Register with your teacher.', author_id: 5, target_role: 'student', target_school: 1, target_grade: null, priority: 'normal', is_active: true, expires_at: new Date('2026-03-25'), created_at: new Date('2026-03-05') },
     { id: 3, uuid: 'ann-003', title: 'New Math Lessons Added', content: 'We have added new lessons for Geometry and Algebra for Class 7 and 8. Check them out!', author_id: 6, target_role: 'all', target_school: null, target_grade: null, priority: 'normal', is_active: true, expires_at: null, created_at: new Date('2026-03-03') },
 ];
