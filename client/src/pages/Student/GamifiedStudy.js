@@ -22,6 +22,7 @@ export default function GamifiedStudy() {
     const [games, setGames] = useState([]);
     const [activeGame, setActiveGame] = useState(null);
     const [gameAnswers, setGameAnswers] = useState([]);
+    const [gameQuestionIdx, setGameQuestionIdx] = useState(0);
     const [gameStartedAt, setGameStartedAt] = useState(null);
     const [gameSubmitting, setGameSubmitting] = useState(false);
     const [gameResult, setGameResult] = useState(null);
@@ -32,6 +33,28 @@ export default function GamifiedStudy() {
     useEffect(() => {
         load();
     }, [isOnline]);
+
+    useEffect(() => {
+        if (!activeGame) return;
+
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const onKeyDown = (e) => {
+            // Don't allow ESC to dismiss the game.
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown, { capture: true });
+
+        return () => {
+            document.body.style.overflow = prevOverflow;
+            window.removeEventListener('keydown', onKeyDown, { capture: true });
+        };
+    }, [activeGame]);
 
     async function load() {
         setLoading(true);
@@ -79,7 +102,26 @@ export default function GamifiedStudy() {
         });
         setActiveGame(data);
         setGameAnswers(new Array((data.questions || []).length).fill(null));
+        setGameQuestionIdx(0);
         setGameStartedAt(Date.now());
+    }
+
+    async function exitQuickChallenge() {
+        if (!activeGame) return;
+        try {
+            await apiFetch('/games/quick-challenge/exit', {
+                method: 'POST',
+                body: JSON.stringify({ session_id: activeGame.session_id }),
+            });
+        } catch (err) {
+            // Best-effort: even if the server call fails, exit the UI.
+            console.error('Quick challenge exit error:', err);
+        } finally {
+            setActiveGame(null);
+            setGameAnswers([]);
+            setGameQuestionIdx(0);
+            setGameStartedAt(null);
+        }
     }
 
     async function submitQuickChallenge() {
@@ -113,6 +155,7 @@ export default function GamifiedStudy() {
             });
             setActiveGame(null);
             setGameAnswers([]);
+            setGameQuestionIdx(0);
             setGameStartedAt(null);
             await load();
         } catch (err) {
@@ -122,6 +165,39 @@ export default function GamifiedStudy() {
             setGameSubmitting(false);
         }
     }
+
+    const mergedProgress = useMemo(() => {
+        if (!board) return { total: 0, completed: 0, pct: 0 };
+        const gameTotal = (games || []).length;
+        const gameCompleted = (games || []).filter(g => g.status === 'completed').length;
+        const total = (board.total_quests || 0) + gameTotal;
+        const completed = (board.completed_quests || 0) + gameCompleted;
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        return { total, completed, pct };
+    }, [board, games]);
+
+    const mergedItems = useMemo(() => {
+        const questItems = (board?.quests || []).map(q => ({
+            ...q,
+            _sortSubject: (q.subtitle || '').split('•')[0].trim().toLowerCase(),
+            _sortType: q.type === 'lesson' ? 2 : q.type === 'quiz' ? 3 : 9,
+        }));
+
+        const gameItems = (games || []).map(g => ({
+            id: `game-${g.subject_code}-${g.game_type}`,
+            type: 'game',
+            title: `${g.subject_icon || '🎮'} ${g.subject_name} • ${g.title}`,
+            subtitle: `Game • ${g.status === 'completed' ? 'Played today' : 'Not played today'}`,
+            xp_reward: g.xp_reward_up_to,
+            status: g.status,
+            subject_code: g.subject_code,
+            _sortSubject: `${g.subject_name}`.trim().toLowerCase(),
+            _sortType: 1,
+        }));
+
+        return [...gameItems, ...questItems]
+            .sort((a, b) => (a._sortSubject || '').localeCompare(b._sortSubject || '') || (a._sortType - b._sortType));
+    }, [board, games]);
 
     if (loading) return <LoadingSpinner text="Loading study arena..." />;
 
@@ -150,47 +226,12 @@ export default function GamifiedStudy() {
                     <Card className="mb-6">
                         <div className="flex items-center justify-between mb-2">
                             <h2 className="font-bold text-gray-800">🏁 Your Quest Progress</h2>
-                            <p className="text-sm text-gray-500">{board.completed_quests}/{board.total_quests} completed</p>
+                            <p className="text-sm text-gray-500">{mergedProgress.completed}/{mergedProgress.total} completed</p>
                         </div>
-                        <ProgressBar value={board.completion_pct} color={board.completion_pct >= 70 ? 'green' : board.completion_pct >= 40 ? 'yellow' : 'red'} />
+                        <ProgressBar value={mergedProgress.pct} color={mergedProgress.pct >= 70 ? 'green' : mergedProgress.pct >= 40 ? 'yellow' : 'red'} />
                         <p className="text-xs text-gray-500 mt-2">
                             App screen time: {formatMins(user?.total_screen_time_secs || 0)} • Visits: {user?.site_visits || 0}
                         </p>
-                    </Card>
-
-                    <Card className="mb-6">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                            <h2 className="font-bold text-gray-800">🎯 Subject Games</h2>
-                            {user?.xp_points != null && (
-                                <p className="text-sm text-gray-500 whitespace-nowrap">⭐ XP: {user.xp_points}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            {(games || []).map(g => (
-                                <div key={`${g.subject_code}-${g.game_type}`} className={`flex items-center justify-between gap-3 rounded-lg p-3 border ${g.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
-                                    <div className="min-w-0">
-                                        <p className="font-medium text-gray-800 text-sm truncate">{g.subject_icon || '🎮'} {g.subject_name} • {g.title}</p>
-                                        <p className="text-xs text-gray-500 truncate">⭐ Up to {g.xp_reward_up_to} XP • {g.status === 'completed' ? 'Played today' : 'Not played today'}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {g.status === 'completed' ? (
-                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full whitespace-nowrap">Completed</span>
-                                        ) : (
-                                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full whitespace-nowrap">Pending</span>
-                                        )}
-                                        <button
-                                            onClick={() => startQuickChallenge(g.subject_code)}
-                                            className="text-xs px-3 py-1 rounded-lg whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white"
-                                        >{g.status === 'completed' ? 'Replay' : 'Play'}</button>
-                                    </div>
-                                </div>
-                            ))}
-                            {(games || []).length === 0 && (
-                                <p className="text-sm text-gray-500">No subject games available for your class yet.</p>
-                            )}
-                        </div>
-
                         {gameResult?.error && (
                             <p className="text-sm text-red-600 mt-3">{gameResult.error}</p>
                         )}
@@ -199,71 +240,22 @@ export default function GamifiedStudy() {
                                 ✅ You earned ⭐ {gameResult.xp_earned} XP ({gameResult.correct}/{gameResult.total}, {gameResult.percentage}%)
                             </p>
                         )}
-
-                        {activeGame && (
-                            <div className="mt-4 border-t border-gray-100 pt-4">
-                                <div className="flex items-center justify-between gap-3 mb-3">
-                                    <div>
-                                        <p className="text-sm text-gray-500">Quick Challenge</p>
-                                        <p className="text-lg font-bold text-gray-800">{activeGame.subject_name}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setActiveGame(null);
-                                            setGameAnswers([]);
-                                            setGameStartedAt(null);
-                                        }}
-                                        className="text-xs px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 whitespace-nowrap"
-                                    >Close</button>
-                                </div>
-
-                                <div className="space-y-4">
-                                    {(activeGame.questions || []).map((q, qi) => (
-                                        <div key={q.id || qi} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-                                            <p className="font-medium text-gray-800 text-sm mb-2">{qi + 1}. {q.text}</p>
-                                            <div className="space-y-2">
-                                                {(q.options || []).map((opt, oi) => (
-                                                    <label key={oi} className="flex items-center gap-2 text-sm text-gray-700">
-                                                        <input
-                                                            type="radio"
-                                                            name={`qc-${qi}`}
-                                                            checked={gameAnswers[qi] === oi}
-                                                            onChange={() => {
-                                                                setGameAnswers(prev => {
-                                                                    const next = [...prev];
-                                                                    next[qi] = oi;
-                                                                    return next;
-                                                                });
-                                                            }}
-                                                        />
-                                                        <span>{opt}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="flex items-center justify-end gap-3 mt-4">
-                                    <button
-                                        onClick={submitQuickChallenge}
-                                        disabled={gameSubmitting || gameAnswers.some(a => a === null || a === undefined)}
-                                        className={`text-sm px-4 py-2 rounded-lg whitespace-nowrap ${gameSubmitting || gameAnswers.some(a => a === null || a === undefined) ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
-                                    >{gameSubmitting ? 'Submitting...' : 'Submit & Earn XP'}</button>
-                                </div>
-                            </div>
-                        )}
                     </Card>
 
                     <div className="grid md:grid-cols-2 gap-4">
                         <Card>
-                            <h2 className="font-bold text-gray-800 mb-3">🧩 Quests</h2>
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <h2 className="font-bold text-gray-800">🧩 Quests & Games</h2>
+                                {user?.xp_points != null && (
+                                    <p className="text-sm text-gray-500 whitespace-nowrap">⭐ XP: {user.xp_points}</p>
+                                )}
+                            </div>
                             <div className="space-y-2">
-                                {(board.quests || []).map(q => (
+                                {(mergedItems || []).map(q => (
                                     <div key={q.id} className={`flex items-center justify-between gap-3 rounded-lg p-3 border ${q.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
                                         <div className="min-w-0">
                                             <p className="font-medium text-gray-800 text-sm truncate">{q.title}</p>
-                                            <p className="text-xs text-gray-500 truncate">{q.subtitle} • ⭐ {q.xp_reward} XP</p>
+                                            <p className="text-xs text-gray-500 truncate">{q.subtitle}{typeof q.xp_reward === 'number' ? ` • ⭐ ${q.xp_reward} XP` : ''}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {q.status === 'completed' ? (
@@ -271,15 +263,22 @@ export default function GamifiedStudy() {
                                             ) : (
                                                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full whitespace-nowrap">Pending</span>
                                             )}
-                                            <Link
-                                                to={q.action_path}
-                                                className="text-xs px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
-                                            >{q.type === 'quiz' ? 'Play' : 'Start'}</Link>
+                                            {q.type === 'game' ? (
+                                                <button
+                                                    onClick={() => startQuickChallenge(q.subject_code)}
+                                                    className="text-xs px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
+                                                >{q.status === 'completed' ? 'Replay' : 'Start'}</button>
+                                            ) : (
+                                                <Link
+                                                    to={q.action_path}
+                                                    className="text-xs px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
+                                                >{q.type === 'quiz' ? 'Play' : 'Start'}</Link>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
-                                {(board.quests || []).length === 0 && (
-                                    <p className="text-sm text-gray-500">No quests available for this class.</p>
+                                {(mergedItems || []).length === 0 && (
+                                    <p className="text-sm text-gray-500">No quests or games available for this class.</p>
                                 )}
                             </div>
                         </Card>
@@ -311,6 +310,77 @@ export default function GamifiedStudy() {
                         </Card>
                     </div>
                 </>
+            )}
+
+            {activeGame && (
+                <div className="fixed inset-0 z-50 bg-gray-50">
+                    <div className="max-w-3xl mx-auto px-4 py-6 h-full flex flex-col">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                                <p className="text-sm text-gray-500">Quick Challenge</p>
+                                <h2 className="text-2xl font-bold text-gray-800">{activeGame.subject_name}</h2>
+                                <p className="text-xs text-gray-500 mt-1">Question {gameQuestionIdx + 1}/{(activeGame.questions || []).length}</p>
+                            </div>
+                            <button
+                                onClick={exitQuickChallenge}
+                                className="text-sm px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white whitespace-nowrap"
+                            >Exit Game</button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto">
+                            {(() => {
+                                const q = (activeGame.questions || [])[gameQuestionIdx];
+                                if (!q) return null;
+                                return (
+                                    <div className="bg-white border border-gray-100 rounded-xl p-4">
+                                        <p className="font-semibold text-gray-800 mb-3">{gameQuestionIdx + 1}. {q.text}</p>
+                                        <div className="space-y-2">
+                                            {(q.options || []).map((opt, oi) => (
+                                                <label key={oi} className="flex items-center gap-3 text-sm text-gray-800 p-3 rounded-lg border border-gray-100 bg-gray-50">
+                                                    <input
+                                                        type="radio"
+                                                        name={`qc-${gameQuestionIdx}`}
+                                                        checked={gameAnswers[gameQuestionIdx] === oi}
+                                                        onChange={() => {
+                                                            setGameAnswers(prev => {
+                                                                const next = [...prev];
+                                                                next[gameQuestionIdx] = oi;
+                                                                return next;
+                                                            });
+                                                        }}
+                                                    />
+                                                    <span className="flex-1">{opt}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between gap-3">
+                            <button
+                                onClick={() => setGameQuestionIdx(i => Math.max(0, i - 1))}
+                                disabled={gameQuestionIdx === 0}
+                                className={`text-sm px-4 py-2 rounded-lg whitespace-nowrap ${gameQuestionIdx === 0 ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
+                            >Back</button>
+
+                            {gameQuestionIdx < (activeGame.questions || []).length - 1 ? (
+                                <button
+                                    onClick={() => setGameQuestionIdx(i => i + 1)}
+                                    disabled={gameAnswers[gameQuestionIdx] === null || gameAnswers[gameQuestionIdx] === undefined}
+                                    className={`text-sm px-4 py-2 rounded-lg whitespace-nowrap ${gameAnswers[gameQuestionIdx] === null || gameAnswers[gameQuestionIdx] === undefined ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                                >Next</button>
+                            ) : (
+                                <button
+                                    onClick={submitQuickChallenge}
+                                    disabled={gameSubmitting || gameAnswers.some(a => a === null || a === undefined)}
+                                    className={`text-sm px-4 py-2 rounded-lg whitespace-nowrap ${gameSubmitting || gameAnswers.some(a => a === null || a === undefined) ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                                >{gameSubmitting ? 'Submitting...' : 'Submit & Earn XP'}</button>
+                            )}
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

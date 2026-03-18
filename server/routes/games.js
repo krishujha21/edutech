@@ -206,4 +206,25 @@ router.post('/quick-challenge/submit', (req, res) => {
     }
 });
 
+// POST /api/games/quick-challenge/exit
+// Discards an in-progress session (no XP awarded).
+router.post('/quick-challenge/exit', (req, res) => {
+    try {
+        const { session_id } = req.body || {};
+
+        const student = data.students.find(s => s.user_id === req.user.id);
+        if (!student) return res.status(404).json({ error: 'Student not found' });
+
+        const sessions = data.game_sessions || [];
+        const idx = sessions.findIndex(s => s.id === session_id && s.student_id === student.id && s.game_type === 'quick_challenge');
+        if (idx < 0) return res.status(404).json({ error: 'Game session not found' });
+
+        sessions.splice(idx, 1);
+        res.json({ message: 'Game exited' });
+    } catch (err) {
+        console.error('Game exit error:', err);
+        res.status(500).json({ error: 'Failed to exit game' });
+    }
+});
+
 module.exports = router;
