@@ -14,11 +14,17 @@ function formatMins(secs) {
 }
 
 export default function GamifiedStudy() {
-    const { user } = useAuth();
+    const { user, setUser } = useAuth();
     const { isOnline } = useOffline();
     const [board, setBoard] = useState(null);
     const [leaderboard, setLeaderboard] = useState([]);
     const [myRank, setMyRank] = useState(null);
+    const [games, setGames] = useState([]);
+    const [activeGame, setActiveGame] = useState(null);
+    const [gameAnswers, setGameAnswers] = useState([]);
+    const [gameStartedAt, setGameStartedAt] = useState(null);
+    const [gameSubmitting, setGameSubmitting] = useState(false);
+    const [gameResult, setGameResult] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const grade = useMemo(() => board?.class_grade || user?.class_grade, [board, user]);
@@ -34,26 +40,86 @@ export default function GamifiedStudy() {
                 setBoard(null);
                 setLeaderboard([]);
                 setMyRank(null);
+                setGames([]);
+                setActiveGame(null);
+                setGameResult(null);
                 return;
             }
 
             const boardData = await apiFetch('/study/me');
             setBoard(boardData.board);
 
-            // Leaderboard scoped to same school + grade.
-            const [lbData, rankData] = await Promise.all([
+            // Leaderboard scoped to same school + grade + games list.
+            const [lbData, rankData, gamesData] = await Promise.all([
                 apiFetch(`/leaderboard?school_id=${user?.school_id || ''}&period=weekly&grade=${encodeURIComponent(boardData.board.class_grade)}`),
-                apiFetch('/leaderboard/my-rank')
+                apiFetch('/leaderboard/my-rank'),
+                apiFetch('/games/me'),
             ]);
             setLeaderboard((lbData.leaderboard || []).slice(0, 10));
             setMyRank(rankData.rank);
+            setGames(gamesData.games || []);
         } catch (err) {
             console.error('Gamified study load error:', err);
             setBoard(null);
             setLeaderboard([]);
             setMyRank(null);
+            setGames([]);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function startQuickChallenge(subject_code) {
+        if (!isOnline) return;
+        setGameResult(null);
+        setGameSubmitting(false);
+        const data = await apiFetch('/games/quick-challenge/start', {
+            method: 'POST',
+            body: JSON.stringify({ subject_code }),
+        });
+        setActiveGame(data);
+        setGameAnswers(new Array((data.questions || []).length).fill(null));
+        setGameStartedAt(Date.now());
+    }
+
+    async function submitQuickChallenge() {
+        if (!activeGame || gameSubmitting) return;
+        setGameSubmitting(true);
+        try {
+            const tt = gameStartedAt ? Math.round((Date.now() - gameStartedAt) / 1000) : 0;
+            const result = await apiFetch('/games/quick-challenge/submit', {
+                method: 'POST',
+                body: JSON.stringify({
+                    session_id: activeGame.session_id,
+                    answers: gameAnswers,
+                    time_taken_secs: tt,
+                }),
+            });
+
+            setUser(prev => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    xp_points: typeof result.updated_xp_points === 'number' ? result.updated_xp_points : prev.xp_points,
+                    current_level: result.new_level ? result.new_level : prev.current_level,
+                };
+            });
+
+            setGameResult({
+                xp_earned: result.xp_earned,
+                percentage: result.percentage,
+                correct: result.correct,
+                total: result.total_questions,
+            });
+            setActiveGame(null);
+            setGameAnswers([]);
+            setGameStartedAt(null);
+            await load();
+        } catch (err) {
+            console.error('Quick challenge submit error:', err);
+            setGameResult({ error: err?.message || 'Failed to submit game' });
+        } finally {
+            setGameSubmitting(false);
         }
     }
 
@@ -90,6 +156,103 @@ export default function GamifiedStudy() {
                         <p className="text-xs text-gray-500 mt-2">
                             App screen time: {formatMins(user?.total_screen_time_secs || 0)} • Visits: {user?.site_visits || 0}
                         </p>
+                    </Card>
+
+                    <Card className="mb-6">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <h2 className="font-bold text-gray-800">🎯 Subject Games</h2>
+                            {user?.xp_points != null && (
+                                <p className="text-sm text-gray-500 whitespace-nowrap">⭐ XP: {user.xp_points}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            {(games || []).map(g => (
+                                <div key={`${g.subject_code}-${g.game_type}`} className={`flex items-center justify-between gap-3 rounded-lg p-3 border ${g.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-gray-800 text-sm truncate">{g.subject_icon || '🎮'} {g.subject_name} • {g.title}</p>
+                                        <p className="text-xs text-gray-500 truncate">⭐ Up to {g.xp_reward_up_to} XP • {g.status === 'completed' ? 'Played today' : 'Not played today'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {g.status === 'completed' ? (
+                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full whitespace-nowrap">Completed</span>
+                                        ) : (
+                                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full whitespace-nowrap">Pending</span>
+                                        )}
+                                        <button
+                                            onClick={() => startQuickChallenge(g.subject_code)}
+                                            className="text-xs px-3 py-1 rounded-lg whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white"
+                                        >{g.status === 'completed' ? 'Replay' : 'Play'}</button>
+                                    </div>
+                                </div>
+                            ))}
+                            {(games || []).length === 0 && (
+                                <p className="text-sm text-gray-500">No subject games available for your class yet.</p>
+                            )}
+                        </div>
+
+                        {gameResult?.error && (
+                            <p className="text-sm text-red-600 mt-3">{gameResult.error}</p>
+                        )}
+                        {gameResult && !gameResult.error && (
+                            <p className="text-sm text-green-700 mt-3">
+                                ✅ You earned ⭐ {gameResult.xp_earned} XP ({gameResult.correct}/{gameResult.total}, {gameResult.percentage}%)
+                            </p>
+                        )}
+
+                        {activeGame && (
+                            <div className="mt-4 border-t border-gray-100 pt-4">
+                                <div className="flex items-center justify-between gap-3 mb-3">
+                                    <div>
+                                        <p className="text-sm text-gray-500">Quick Challenge</p>
+                                        <p className="text-lg font-bold text-gray-800">{activeGame.subject_name}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setActiveGame(null);
+                                            setGameAnswers([]);
+                                            setGameStartedAt(null);
+                                        }}
+                                        className="text-xs px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 whitespace-nowrap"
+                                    >Close</button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {(activeGame.questions || []).map((q, qi) => (
+                                        <div key={q.id || qi} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                                            <p className="font-medium text-gray-800 text-sm mb-2">{qi + 1}. {q.text}</p>
+                                            <div className="space-y-2">
+                                                {(q.options || []).map((opt, oi) => (
+                                                    <label key={oi} className="flex items-center gap-2 text-sm text-gray-700">
+                                                        <input
+                                                            type="radio"
+                                                            name={`qc-${qi}`}
+                                                            checked={gameAnswers[qi] === oi}
+                                                            onChange={() => {
+                                                                setGameAnswers(prev => {
+                                                                    const next = [...prev];
+                                                                    next[qi] = oi;
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                        />
+                                                        <span>{opt}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3 mt-4">
+                                    <button
+                                        onClick={submitQuickChallenge}
+                                        disabled={gameSubmitting || gameAnswers.some(a => a === null || a === undefined)}
+                                        className={`text-sm px-4 py-2 rounded-lg whitespace-nowrap ${gameSubmitting || gameAnswers.some(a => a === null || a === undefined) ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                                    >{gameSubmitting ? 'Submitting...' : 'Submit & Earn XP'}</button>
+                                </div>
+                            </div>
+                        )}
                     </Card>
 
                     <div className="grid md:grid-cols-2 gap-4">

@@ -29,6 +29,7 @@ app.use('/api/schools', require('./routes/schools'));
 app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/study', require('./routes/study'));
+app.use('/api/games', require('./routes/games'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -228,6 +228,14 @@ const quiz_attempts = [
 ];
 let nextQuizAttemptId = quiz_attempts.length + 1;
 
+// ---------- SUBJECT GAMES (ATTEMPTS + SESSIONS) ----------
+// Sessions are temporary in-memory records used to grade submissions.
+// Attempts are persisted in-memory to show "played today" and award XP.
+const game_sessions = [];
+
+const game_attempts = [];
+let nextGameAttemptId = game_attempts.length + 1;
+
 // ---------- DAILY TARGETS ----------
 const daily_targets = [
     { id: 1, student_id: 1, target_date: new Date().toISOString().split('T')[0], lessons_target: 2, lessons_done: 1, quizzes_target: 1, quizzes_done: 0, xp_earned: 20, is_completed: false },
@@ -281,6 +289,8 @@ module.exports = {
     student_badges,
     progress, nextProgressId: () => nextProgressId++,
     quiz_attempts, nextQuizAttemptId: () => nextQuizAttemptId++,
+    game_sessions,
+    game_attempts, nextGameAttemptId: () => nextGameAttemptId++,
     daily_targets,
     announcements, nextAnnouncementId: () => nextAnnouncementId++,
     leaderboard,
